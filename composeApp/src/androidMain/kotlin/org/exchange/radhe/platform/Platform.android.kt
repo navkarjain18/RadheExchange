@@ -7,7 +7,7 @@ import com.russhwolf.settings.SharedPreferencesSettings
 import org.exchange.radhe.RadheApp
 
 actual fun createSettings(): Settings {
-    return SharedPreferencesSettings(RadheApp.instance.applicationContext.getSharedPreferences("RadheExc", Context.MODE_PRIVATE))
+    return SharedPreferencesSettings(RadheApp.instance.getSharedPreferences("RadheExc", Context.MODE_PRIVATE))
 }
 
 actual fun getPlatform(): Platform = Platform.Android

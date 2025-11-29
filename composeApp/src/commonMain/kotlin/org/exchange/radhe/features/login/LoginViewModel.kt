@@ -5,8 +5,7 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.exchange.radhe.di.DI
-import org.exchange.radhe.platform.Platform
-import org.exchange.radhe.platform.getPlatform
+import org.exchange.radhe.navigation.getPostLoginScreen
 
 class LoginViewModel : ScreenModel {
     private val loginRepository = DI.loginRepository
@@ -39,11 +38,5 @@ class LoginViewModel : ScreenModel {
         }
     }
 
-    fun getPostLoginScreen(): cafe.adriel.voyager.core.screen.Screen {
-        return if (getPlatform() == Platform.Android) {
-            org.exchange.radhe.features.home.HomeScreen
-        } else {
-            org.exchange.radhe.features.details.DetailsScreen
-        }
-    }
+    fun getPostLoginScreen() = org.exchange.radhe.navigation.getPostLoginScreen()
 }
