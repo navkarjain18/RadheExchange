@@ -1,12 +1,16 @@
-
 package org.exchange.radhe
 
 import android.app.Application
-import org.exchange.radhe.platform.ContextProvider
+
 
 class RadheApp : Application() {
+
+    companion object {
+        lateinit var instance: RadheApp
+    }
+
     override fun onCreate() {
         super.onCreate()
-        ContextProvider.context = this
+        instance = this
     }
 }

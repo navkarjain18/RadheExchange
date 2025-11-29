@@ -2,6 +2,7 @@
 package org.exchange.radhe.features.home
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -23,11 +24,18 @@ object HomeScreen : Screen {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Button(onClick = {
-                viewModel.logout()
-                navigator.pop()
-            }) {
-                Text("Logout")
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Button(onClick = {
+                    viewModel.sendMessage("Hello from Android!")
+                }) {
+                    Text("Send Message")
+                }
+                Button(onClick = {
+                    viewModel.logout()
+                    navigator.pop()
+                }) {
+                    Text("Logout")
+                }
             }
         }
     }

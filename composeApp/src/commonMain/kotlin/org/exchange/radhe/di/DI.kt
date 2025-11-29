@@ -3,6 +3,7 @@ package org.exchange.radhe.di
 
 import com.russhwolf.settings.Settings
 import org.exchange.radhe.data.LoginRepository
+import org.exchange.radhe.network.WsClient
 import org.exchange.radhe.platform.createSettings
 
 object DI {
@@ -12,5 +13,9 @@ object DI {
 
     val loginRepository: LoginRepository by lazy {
         LoginRepository(settings)
+    }
+
+    val wsClient: WsClient by lazy {
+        WsClient()
     }
 }

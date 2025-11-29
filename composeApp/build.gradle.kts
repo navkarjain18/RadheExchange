@@ -22,6 +22,7 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+            implementation("io.ktor:ktor-client-okhttp:3.3.3")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -37,7 +38,8 @@ kotlin {
             implementation("cafe.adriel.voyager:voyager-transitions:1.0.1")
             implementation("cafe.adriel.voyager:voyager-screenmodel:1.0.1")
             implementation("com.russhwolf:multiplatform-settings:1.3.0")
-
+            implementation("io.ktor:ktor-client-core:3.3.3")
+            implementation("io.ktor:ktor-client-websockets:3.3.3")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -45,6 +47,7 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
+            implementation("io.ktor:ktor-client-java:3.3.3")
         }
     }
 }
