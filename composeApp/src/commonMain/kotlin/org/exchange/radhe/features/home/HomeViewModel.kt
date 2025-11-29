@@ -3,8 +3,12 @@ package org.exchange.radhe.features.home
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.exchange.radhe.di.DI
+import org.exchange.radhe.di.KeyAction
+import org.exchange.radhe.di.KeyEventBus
 
 class HomeViewModel : ScreenModel {
     private val loginRepository = DI.loginRepository
@@ -12,8 +16,18 @@ class HomeViewModel : ScreenModel {
 
     init {
         screenModelScope.launch {
-            wsClient.connect("ws://10.0.2.2:8080") // Use 10.0.2.2 for Android emulator to connect to localhost
+            wsClient.connect("ws://10.0.2.2:8080")
         }
+        observeKeyEvents()
+    }
+
+    private fun observeKeyEvents() {
+        KeyEventBus.events.onEach { action ->
+            when (action) {
+                KeyAction.VOLUME_UP -> sendMessage("wicket_click")
+                KeyAction.VOLUME_DOWN -> sendMessage("boundary_click")
+            }
+        }.launchIn(screenModelScope)
     }
 
     fun logout() {
