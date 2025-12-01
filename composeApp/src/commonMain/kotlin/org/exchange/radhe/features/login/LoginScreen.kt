@@ -42,7 +42,7 @@ class LoginScreen : Screen {
 
         LaunchedEffect(uiState.isLoggedIn) {
             if (uiState.isLoggedIn) {
-                navigator.push(HomeScreen())
+                navigator.replaceAll(HomeScreen())
             }
         }
 

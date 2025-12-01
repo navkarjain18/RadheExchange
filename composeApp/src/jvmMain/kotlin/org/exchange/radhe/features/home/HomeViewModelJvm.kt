@@ -144,11 +144,13 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
     }
 
     fun logout() {
-        loginRepository.logout()
-        _uiState.update { it.copy(isLoggedOut = true) }
+        screenModelScope.launch {
+            wsClient.disconnect()
+            loginRepository.logout()
+            _uiState.update { it.copy(isLoggedOut = true) }
+        }
     }
 
-    // Acknowledge error to clear it from the UI
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
@@ -172,9 +174,8 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
             _uiState.update { it.copy(error = errorMsg) }
         }
     }
-
+	
     private fun calculateBackoff(attempt: Int): Long {
-        // Exponential backoff: 2^attempt * 1000ms, capped at 60s
         return min(AppConstants.MAX_RECONNECT_DELAY_MS, (AppConstants.BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong())
     }
 
