@@ -12,14 +12,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
 
 class WsClient {
 
     private val client = HttpClient { install(WebSockets) }
     private var session: WebSocketSession? = null
 
-    suspend fun connect(serverUrl: String) {
+    suspend fun connect(serverUrl: String, role: String, username: String) {
+        if (session != null) return
         session = client.webSocketSession(serverUrl)
+        val command = Command(type = "connect", role = role, username = username)
+        sendCommand(command)
     }
 
     fun observeMessages(): Flow<String> {
@@ -28,13 +32,13 @@ class WsClient {
             ?.map { it.readText() } ?: kotlinx.coroutines.flow.emptyFlow()
     }
 
-    suspend fun send(message: String) {
-        session?.send(Frame.Text(message))
+    suspend fun sendCommand(command: Command) {
+        val commandJson = json.encodeToString(command)
+        session?.send(Frame.Text(commandJson))
     }
 
     suspend fun disconnect() {
         session?.close()
         session = null
-        client.close()
     }
 }

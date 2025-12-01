@@ -32,6 +32,7 @@ import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import org.exchange.radhe.features.home.HomeScreen
 
 object LoginScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +79,7 @@ object LoginScreen : Screen {
                 Button(
                     onClick = {
                         if (viewModel.login()) {
-                            navigator.push(viewModel.getPostLoginScreen())
+                            navigator.push(HomeScreen)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

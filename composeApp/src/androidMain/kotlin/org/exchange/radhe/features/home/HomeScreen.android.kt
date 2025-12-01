@@ -2,14 +2,22 @@
 package org.exchange.radhe.features.home
 
 import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -19,13 +27,46 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.exchange.radhe.WebSocketService
+import org.exchange.radhe.utils.isAccessibilityServiceEnabled
 
-object HomeScreen : Screen {
+actual object HomeScreen : Screen {
     @Composable
-    override fun Content() {
+    actual override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val viewModel = rememberScreenModel { HomeViewModel() }
         val context = LocalContext.current
+
+        var showDialog by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            if (!isAccessibilityServiceEnabled(context)) {
+                showDialog = true
+            }
+        }
+
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Enable Accessibility Service") },
+                text = { Text("To use the volume buttons to control the desktop, you must enable the Accessibility Service for this app.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDialog = false
+                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Text("Go to Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDialog = false }) {
+                        Text("Dismiss")
+                    }
+                }
+            )
+        }
 
         Column(
             modifier = Modifier.fillMaxSize(),

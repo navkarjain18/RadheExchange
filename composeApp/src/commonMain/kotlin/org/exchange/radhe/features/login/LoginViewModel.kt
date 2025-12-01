@@ -5,15 +5,14 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.exchange.radhe.di.DI
-import org.exchange.radhe.navigation.getPostLoginScreen
 
 class LoginViewModel : ScreenModel {
     private val loginRepository = DI.loginRepository
 
-    private val _username = MutableStateFlow("")
+    private val _username = MutableStateFlow("shiv001")
     val username = _username.asStateFlow()
 
-    private val _password = MutableStateFlow("")
+    private val _password = MutableStateFlow("Abcd1234")
     val password = _password.asStateFlow()
 
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -37,6 +36,4 @@ class LoginViewModel : ScreenModel {
             false
         }
     }
-
-    fun getPostLoginScreen() = org.exchange.radhe.navigation.getPostLoginScreen()
 }

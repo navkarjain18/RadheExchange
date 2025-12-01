@@ -6,4 +6,5 @@
     android:notificationTimeout="100"
     android:canPerformGestures="false"
     android:canRequestFilterKeyEvents="true"
+    android:accessibilityFlags="flagRequestFilterKeyEvents"
     />
