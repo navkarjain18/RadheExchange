@@ -17,9 +17,12 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.exchange.radhe.AppConstants
+import org.exchange.radhe.di.ConnectionStatus
 import org.exchange.radhe.di.DI
 import org.exchange.radhe.di.KeyAction
 import org.exchange.radhe.di.KeyEventBus
+import org.exchange.radhe.di.UplinkStateHolder
 import org.exchange.radhe.network.Command
 import org.exchange.radhe.network.Payload
 import kotlin.math.min
@@ -37,9 +40,6 @@ class WebSocketService : Service() {
         private const val TAG = "WebSocketService"
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "WebSocketChannel"
-        const val EXTRA_USERNAME = "username"
-        private const val BASE_RECONNECT_DELAY_MS = 1000L
-        private const val MAX_RECONNECT_DELAY_MS = 60000L
     }
 
     override fun onCreate() {
@@ -51,32 +51,33 @@ class WebSocketService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service starting...")
-        val username = intent?.getStringExtra(EXTRA_USERNAME) ?: "navkar" // Fallback to default
-
         scope.launch {
-            connectAndObserve(username)
+            connectAndObserve()
         }
-
         return START_STICKY
     }
 
-    private suspend fun connectAndObserve(username: String) {
+    private suspend fun connectAndObserve() {
         var attempt = 0
         while (true) {
             try {
+                UplinkStateHolder.updateConnectionStatus(ConnectionStatus.Connecting)
                 updateNotification("Connecting to desktop app...")
-                wsClient.connect("ws://10.81.2.11:8080", "phone", username)
+                wsClient.connect(AppConstants.WEBSOCKET_URL, AppConstants.ROLE_PHONE)
+                UplinkStateHolder.updateConnectionStatus(ConnectionStatus.Connected)
                 updateNotification("Connected to desktop app.")
                 Log.d(TAG, "Connection successful.")
                 attempt = 0
 
-                observeKeyEvents(username)
+                observeKeyEvents()
 
                 wsClient.observeMessages().catch { e -> Log.e(TAG, "Error observing messages", e) }
                     .launchIn(scope).join()
 
             } catch (e: Exception) {
-                Log.e(TAG, "Connection failed", e)
+                val errorMessage = "Connection failed: ${e.message}"
+                UplinkStateHolder.updateConnectionStatus(ConnectionStatus.Error(errorMessage))
+                Log.e(TAG, errorMessage)
             }
 
             val delayMillis = calculateBackoff(attempt)
@@ -87,15 +88,16 @@ class WebSocketService : Service() {
         }
     }
 
-    private fun observeKeyEvents(username: String) {
+    private fun observeKeyEvents() {
         KeyEventBus.events.onEach { action ->
             Log.d(TAG, "Key event: $action")
             val commandAction = when (action) {
-                KeyAction.VOLUME_UP -> "wicket"
-                KeyAction.VOLUME_DOWN -> "boundary"
+                KeyAction.VOLUME_UP -> AppConstants.PAYLOAD_ACTION_WICKET
+                KeyAction.VOLUME_DOWN -> AppConstants.PAYLOAD_ACTION_BOUNDARY
             }
+            UplinkStateHolder.updateLastCommand(commandAction)
             val command = Command(
-                type = "command", username = username, payload = Payload(action = commandAction)
+                type = AppConstants.COMMAND_TYPE_COMMAND, username = AppConstants.COMMAND_USERNAME_ALL, payload = Payload(action = commandAction)
             )
             scope.launch {
                 wsClient.sendCommand(command)
@@ -123,13 +125,14 @@ class WebSocketService : Service() {
 
     private fun calculateBackoff(attempt: Int): Long {
         return min(
-            MAX_RECONNECT_DELAY_MS,
-            (BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong()
+            AppConstants.MAX_RECONNECT_DELAY_MS,
+            (AppConstants.BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong()
         )
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        UplinkStateHolder.updateConnectionStatus(ConnectionStatus.Disconnected)
         Log.d(TAG, "Service destroyed")
         scope.cancel() // Cancel all coroutines
         scope.launch {

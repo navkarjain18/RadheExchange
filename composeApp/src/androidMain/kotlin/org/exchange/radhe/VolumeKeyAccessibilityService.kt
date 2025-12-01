@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import org.exchange.radhe.di.DI
 import org.exchange.radhe.di.KeyAction
 import org.exchange.radhe.di.KeyEventBus
 
@@ -47,17 +46,9 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!isServiceRunning(WebSocketService::class.java)) {
-            val username = DI.loginRepository.getUsername()
-            if (username != null) {
-                Log.d(TAG, "WebSocketService not running. Starting it for user: $username")
-                val intent = Intent(this, WebSocketService::class.java).apply {
-                    putExtra(WebSocketService.EXTRA_USERNAME, username)
-                }
-                startService(intent)
-            } else {
-                Log.d(TAG, "User not logged in. Ignoring key event.")
-                return super.onKeyEvent(event)
-            }
+            Log.d(TAG, "WebSocketService not running. Starting it...")
+            val intent = Intent(this, WebSocketService::class.java)
+            startService(intent)
         }
 
         if (event.action == KeyEvent.ACTION_DOWN) {

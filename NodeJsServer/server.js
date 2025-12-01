@@ -1,21 +1,23 @@
 /**
- * SIMPLE & FAST WEBSOCKET RELAY SERVER
- * Supports:
- *  - Connect (role + username)
- *  - Command forwarding phone → desktop
- *  - No ACK required
+ * ONE PHONE → MULTIPLE DESKTOPS
+ * Command format remains SAME:
+ *
+ * {
+ *   "type": "command",
+ *   "username": "rahul",   // OR "all"
+ *   "payload": { "action": "wicket" }
+ * }
+ *
+ * Phone connects with:  { type:"connect", role:"phone" }
+ * Desktop connects with: { type:"connect", role:"desktop", username:"rahul" }
  */
 
 const WebSocket = require("ws");
-
 const PORT = 8080;
 
-// Store connected clients
-// clients.desktop["username"] = socket
-// clients.phone["username"] = socket
 const clients = {
-  desktop: {},
-  phone: {}
+  phone: null,        // only one phone
+  desktop: {}         // multiple desktops by username
 };
 
 const wss = new WebSocket.Server({ port: PORT }, () => {
@@ -29,59 +31,81 @@ wss.on("connection", (ws) => {
   let assignedUser = null;
 
   ws.on("message", (raw) => {
-    const message = raw.toString();
-    console.log("📩 Received:", message);
+    const msg = raw.toString();
+    console.log("📩 Received:", msg);
 
-    // Parse JSON safely
     let data;
     try {
-      data = JSON.parse(message);
-    } catch (e) {
-      console.log("❌ Invalid JSON:", message);
+      data = JSON.parse(msg);
+    } catch {
+      console.log("❌ Invalid JSON received");
       return;
     }
 
     // ------------------------------------
-    // 1️⃣ CONNECT MESSAGE
+    // 1️⃣ CONNECT HANDLER
     // ------------------------------------
     if (data.type === "connect") {
       const { role, username } = data;
 
-      if (!role || !username) {
-        console.log("❌ Missing role or username.");
+      // Phone connect
+      if (role === "phone") {
+        clients.phone = ws;
+        assignedRole = "phone";
+        console.log("📱 PHONE connected");
         return;
       }
 
-      clients[role][username] = ws; // store socket
-      assignedRole = role;
-      assignedUser = username;
+      // Desktop connect
+      if (role === "desktop") {
+        if (!username) {
+          console.log("❌ Desktop missing username");
+          return;
+        }
 
-      console.log(`🟢 Registered: ${role.toUpperCase()} (${username})`);
+        clients.desktop[username] = ws;
+        assignedRole = "desktop";
+        assignedUser = username;
 
-      ws.send(JSON.stringify({
-        type: "connected",
-        role,
-        username,
-        message: "Connection established"
-      }));
+        console.log(`🖥️ Desktop connected (${username})`);
+        return;
+      }
 
       return;
     }
 
     // ------------------------------------
-    // 2️⃣ COMMAND MESSAGE (phone → desktop)
+    // 2️⃣ COMMAND HANDLER (phone → desktops)
     // ------------------------------------
     if (data.type === "command") {
-      const { username, payload } = data;
+      if (assignedRole !== "phone") {
+        console.log("❌ Only PHONE can send commands");
+        return;
+      }
 
+      const { username, payload } = data;
       if (!username || !payload) {
         console.log("❌ Invalid COMMAND message.");
         return;
       }
 
+      // Broadcast case: username === "all"
+      if (username === "all") {
+        console.log("📢 Broadcasting command to ALL desktops");
+        for (const user in clients.desktop) {
+          clients.desktop[user].send(JSON.stringify({
+            type: "command",
+            username: user,  // each desktop receives its own username
+            payload
+          }));
+        }
+        return;
+      }
+
+      // Targeted case: send to one desktop
       const desktopSocket = clients.desktop[username];
       if (!desktopSocket) {
-        console.log("⚠️ Desktop not connected for user:", username);
+        console.log(`⚠️ Desktop '${username}' is not connected`);
         return;
       }
 
@@ -97,13 +121,19 @@ wss.on("connection", (ws) => {
   });
 
   // ------------------------------------
-  // Disconnection handling
+  // Disconnection logic
   // ------------------------------------
   ws.on("close", () => {
-    console.log(`❌ Disconnected: role=${assignedRole}, user=${assignedUser}`);
+    console.log(`❌ Disconnected (role=${assignedRole}, user=${assignedUser})`);
 
-    if (assignedRole && assignedUser) {
-      delete clients[assignedRole][assignedUser];
+    if (assignedRole === "phone") {
+      clients.phone = null;
+      console.log("📱 Phone disconnected");
+    }
+
+    if (assignedRole === "desktop" && assignedUser) {
+      delete clients.desktop[assignedUser];
+      console.log(`🖥️ Desktop removed (${assignedUser})`);
     }
   });
 });

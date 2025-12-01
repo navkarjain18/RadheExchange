@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.exchange.radhe.AppConstants
 import org.exchange.radhe.data.LoginRepository
 import org.exchange.radhe.di.DI
 
@@ -22,15 +23,6 @@ class LoginViewModel(private val loginRepository: LoginRepository = DI.loginRepo
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
 
-    // 5 dummy users
-    private val dummyUsers = mapOf(
-        "navkar" to "pass1",
-        "shiv" to "pass2",
-        "rohan" to "pass3",
-        "rahul" to "pass4",
-        "riya" to "pass5"
-    )
-
     fun onUsernameChange(username: String) {
         _uiState.update { it.copy(username = username) }
     }
@@ -45,7 +37,7 @@ class LoginViewModel(private val loginRepository: LoginRepository = DI.loginRepo
             val passwordInput = _uiState.value.password
 
             // Find user entry in a case-insensitive way to prevent crashes
-            val userEntry = dummyUsers.entries.find { it.key.equals(usernameInput, ignoreCase = true) }
+            val userEntry = AppConstants.DUMMY_USERS.entries.find { it.key.equals(usernameInput, ignoreCase = true) }
 
             if (userEntry != null && userEntry.value == passwordInput) {
                 // Use the correct-cased username from the found entry

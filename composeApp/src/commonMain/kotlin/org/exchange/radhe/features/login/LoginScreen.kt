@@ -33,7 +33,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.exchange.radhe.features.home.HomeScreen
 
-object LoginScreen : Screen {
+class LoginScreen : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
@@ -42,7 +42,7 @@ object LoginScreen : Screen {
 
         LaunchedEffect(uiState.isLoggedIn) {
             if (uiState.isLoggedIn) {
-                navigator.push(HomeScreen)
+                navigator.push(HomeScreen())
             }
         }
 

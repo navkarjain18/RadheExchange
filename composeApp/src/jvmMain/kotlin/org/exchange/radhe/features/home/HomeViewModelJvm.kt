@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.exchange.radhe.AppConstants
 import org.exchange.radhe.data.LoginRepository
 import org.exchange.radhe.di.DI
 import org.exchange.radhe.network.Command
@@ -59,7 +60,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
                 try {
                     _uiState.update { it.copy(connectionState = ConnectionState.Connecting, error = null) }
                     println("Attempting to connect (attempt #${attempt + 1})...")
-                    wsClient.connect(WEBSOCKET_URL, ROLE, username)
+                    wsClient.connect(AppConstants.WEBSOCKET_URL, AppConstants.ROLE_DESKTOP, username)
                     _uiState.update { it.copy(connectionState = ConnectionState.Connected) }
                     println("Connection successful.")
                     attempt = 0 // Reset attempts on successful connection
@@ -104,8 +105,8 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
         println("Handling command: '$command'")
         val action = command.payload?.action ?: return
         val isEnabled = when (action) {
-            "wicket" -> uiState.value.isWicketToggleOn
-            "boundary" -> uiState.value.isBoundaryToggleOn
+            AppConstants.PAYLOAD_ACTION_WICKET -> uiState.value.isWicketToggleOn
+            AppConstants.PAYLOAD_ACTION_BOUNDARY -> uiState.value.isBoundaryToggleOn
             else -> {
                 println("Unknown command action: '$action'")
                 false
@@ -174,7 +175,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
 
     private fun calculateBackoff(attempt: Int): Long {
         // Exponential backoff: 2^attempt * 1000ms, capped at 60s
-        return min(MAX_RECONNECT_DELAY_MS, (BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong())
+        return min(AppConstants.MAX_RECONNECT_DELAY_MS, (AppConstants.BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong())
     }
 
     override fun onDispose() {
@@ -183,12 +184,5 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
         screenModelScope.launch {
             wsClient.disconnect()
         }
-    }
-
-    companion object {
-        private const val WEBSOCKET_URL = "ws://10.81.2.11:8080"
-        private const val ROLE = "desktop"
-        private const val BASE_RECONNECT_DELAY_MS = 1000L
-        private const val MAX_RECONNECT_DELAY_MS = 60000L
     }
 }

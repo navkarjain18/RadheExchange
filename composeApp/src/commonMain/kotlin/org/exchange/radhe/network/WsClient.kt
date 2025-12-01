@@ -23,7 +23,7 @@ class WsClient {
     }
     private var session: WebSocketSession? = null
 
-    suspend fun connect(serverUrl: String, role: String, username: String) {
+    suspend fun connect(serverUrl: String, role: String, username: String? = null) {
         // Disconnect safely before creating a new session
         disconnect()
         session = client.webSocketSession(serverUrl)

@@ -1,7 +1,7 @@
-
 package org.exchange.radhe.network
 
 import kotlinx.serialization.Serializable
+import org.exchange.radhe.AppConstants
 
 @Serializable
 data class Command(
