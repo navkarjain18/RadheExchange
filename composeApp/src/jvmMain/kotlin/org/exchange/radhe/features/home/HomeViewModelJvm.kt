@@ -6,131 +6,175 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.exchange.radhe.data.LoginRepository
 import org.exchange.radhe.di.DI
 import org.exchange.radhe.network.Command
 import org.exchange.radhe.network.json
 import java.awt.MouseInfo
 import java.awt.Robot
 import java.awt.event.InputEvent
+import kotlin.math.min
+import kotlin.math.pow
 
-class HomeViewModelJvm : ScreenModel {
+data class HomeUiState(
+    val isWicketToggleOn: Boolean = false,
+    val isBoundaryToggleOn: Boolean = false,
+    val connectionState: ConnectionState = ConnectionState.Connecting,
+    val lastReceivedCommand: String = "None",
+    val error: String? = null,
+    val username: String? = null,
+    val isLoggedOut: Boolean = false
+)
+
+sealed interface ConnectionState {
+    object Connecting : ConnectionState
+    object Connected : ConnectionState
+    data class Disconnected(val reason: String) : ConnectionState
+}
+
+class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRepository) : ScreenModel {
+
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState = _uiState.asStateFlow()
 
     private val wsClient = DI.wsClient
     private val robot = Robot()
 
-    private val _wicketToggle = MutableStateFlow(false)
-    val wicketToggle = _wicketToggle.asStateFlow()
-
-    private val _boundaryToggle = MutableStateFlow(false)
-    val boundaryToggle = _boundaryToggle.asStateFlow()
-
-    private val _connectionStatus = MutableStateFlow("Connecting...")
-    val connectionStatus = _connectionStatus.asStateFlow()
-
-    private val _lastCommand = MutableStateFlow("None")
-    val lastCommand = _lastCommand.asStateFlow()
-
     init {
         println("HomeViewModelJvm initializing...")
+        _uiState.update { it.copy(username = loginRepository.getUsername()) }
         connectAndObserve()
     }
 
     private fun connectAndObserve() {
         screenModelScope.launch {
-            try {
-                _connectionStatus.value = "Connecting..."
-                println("Attempting to connect to ws://10.81.2.11:8080")
-                wsClient.connect("ws://10.81.2.11:8080", "desktop", "navkar")
-                _connectionStatus.value = "Connected!"
-                println("Connection successful.")
-                wsClient.observeMessages()
-                    .onEach { msg ->
-                        println("Received command: '$msg'")
-                        try {
-                            val command = json.decodeFromString<Command>(msg)
-                            _lastCommand.value = command.payload?.action ?: "Unknown"
-                            handleCommand(command)
-                        } catch (e: Exception) {
-                            println("Error decoding or handling command: ${e.message}")
+            val username = uiState.value.username ?: return@launch
+            var attempt = 0
+            while (true) {
+                try {
+                    _uiState.update { it.copy(connectionState = ConnectionState.Connecting, error = null) }
+                    println("Attempting to connect (attempt #${attempt + 1})...")
+                    wsClient.connect(WEBSOCKET_URL, ROLE, username)
+                    _uiState.update { it.copy(connectionState = ConnectionState.Connected) }
+                    println("Connection successful.")
+                    attempt = 0 // Reset attempts on successful connection
+
+                    wsClient.observeMessages()
+                        .onEach { msg ->
+                            println("Received message: '$msg'")
+                            try {
+                                val command = json.decodeFromString<Command>(msg)
+                                _uiState.update { it.copy(lastReceivedCommand = command.payload?.action ?: "Unknown") }
+                                handleCommand(command)
+                            } catch (e: Exception) {
+                                val errorMsg = "Error decoding command: ${e.message}"
+                                println(errorMsg)
+                                _uiState.update { it.copy(error = errorMsg) }
+                            }
                         }
-                    }
-                    .onCompletion { // This will be called on error or completion
-                        _connectionStatus.value = "Disconnected. Reconnecting..."
-                        println("Connection lost. Reconnecting...")
-                        delay(5000) // wait 5 seconds
-                        connectAndObserve() // Try to reconnect
-                    }
-                    .launchIn(screenModelScope)
-            } catch (e: Exception) {
-                _connectionStatus.value = "Connection failed. Retrying..."
-                println("Connection failed: ${e.message}. Retrying...")
-                delay(5000) // wait 5 seconds
-                connectAndObserve() // Try to reconnect
+                        .catch { e ->
+                            println("Error in WebSocket flow: ${e.message}")
+                            // This will trigger the onCompletion and the reconnection logic
+                        }
+                        .launchIn(screenModelScope)
+                        .join() // Wait until the flow is complete (i.e., connection is lost)
+
+                } catch (e: Exception) {
+                    val errorMsg = "Connection failed: ${e.message}"
+                    println(errorMsg)
+                    _uiState.update { it.copy(error = errorMsg) }
+                }
+
+                // If we are here, the connection was lost or failed
+                val delayMillis = calculateBackoff(attempt)
+                _uiState.update { it.copy(connectionState = ConnectionState.Disconnected("Reconnecting in ${delayMillis / 1000}s...")) }
+                println("Connection lost. Reconnecting in ${delayMillis / 1000} seconds...")
+                delay(delayMillis)
+                attempt++
             }
         }
     }
 
     private fun handleCommand(command: Command) {
         println("Handling command: '$command'")
-        when (command.payload?.action) {
-            "wicket" -> {
-                if (_wicketToggle.value) {
-                    println("Wicket toggle is ON. Performing mouse click.")
-                    // Launch click in a background thread
-                    screenModelScope.launch(Dispatchers.IO) {
-                        performMouseClick()
-                    }
-                } else {
-                    println("Wicket toggle is OFF. Ignoring command.")
-                }
+        val action = command.payload?.action ?: return
+        val isEnabled = when (action) {
+            "wicket" -> uiState.value.isWicketToggleOn
+            "boundary" -> uiState.value.isBoundaryToggleOn
+            else -> {
+                println("Unknown command action: '$action'")
+                false
             }
-            "boundary" -> {
-                if (_boundaryToggle.value) {
-                    println("Boundary toggle is ON. Performing mouse click.")
-                    // Launch click in a background thread
-                    screenModelScope.launch(Dispatchers.IO) {
-                        performMouseClick()
-                    }
-                } else {
-                    println("Boundary toggle is OFF. Ignoring command.")
-                }
+        }
+
+        if (isEnabled) {
+            println("Performing mouse click for action: '$action'")
+            screenModelScope.launch(Dispatchers.IO) {
+                performMouseClick()
             }
-            else -> println("Unknown command received: '${command.payload?.action}'")
+        } else {
+            println("Toggle for action '$action' is OFF. Ignoring command.")
         }
     }
 
     fun onWicketToggleChanged(isToggled: Boolean) {
-        _wicketToggle.update { isToggled }
-        if (isToggled) {
-            _boundaryToggle.update { false }
+        _uiState.update {
+            it.copy(
+                isWicketToggleOn = isToggled,
+                isBoundaryToggleOn = if (isToggled) false else it.isBoundaryToggleOn
+            )
         }
         println("Wicket toggle changed to: $isToggled")
     }
 
     fun onBoundaryToggleChanged(isToggled: Boolean) {
-        _boundaryToggle.update { isToggled }
-        if (isToggled) {
-            _wicketToggle.update { false }
+        _uiState.update {
+            it.copy(
+                isBoundaryToggleOn = isToggled,
+                isWicketToggleOn = if (isToggled) false else it.isWicketToggleOn
+            )
         }
         println("Boundary toggle changed to: $isToggled")
     }
 
+    fun logout() {
+        loginRepository.logout()
+        _uiState.update { it.copy(isLoggedOut = true) }
+    }
+
+    // Acknowledge error to clear it from the UI
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
     private fun performMouseClick() {
         try {
-            // Get current mouse location
-            val currentLocation = MouseInfo.getPointerInfo().location
+            val pointerInfo = MouseInfo.getPointerInfo()
+            if (pointerInfo == null) {
+                println("Could not get mouse pointer info. Headless environment?")
+                _uiState.update { it.copy(error = "Could not get mouse pointer info.") }
+                return
+            }
+            val currentLocation = pointerInfo.location
             robot.mouseMove(currentLocation.x, currentLocation.y)
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
-            Thread.sleep(50) // Use Thread.sleep in a non-coroutine context
+            Thread.sleep(50)
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
         } catch (e: Exception) {
-            println("Error performing mouse click: ${e.message}")
+            val errorMsg = "Error performing mouse click: ${e.message}"
+            println(errorMsg)
+            _uiState.update { it.copy(error = errorMsg) }
         }
+    }
+
+    private fun calculateBackoff(attempt: Int): Long {
+        // Exponential backoff: 2^attempt * 1000ms, capped at 60s
+        return min(MAX_RECONNECT_DELAY_MS, (BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong())
     }
 
     override fun onDispose() {
@@ -139,5 +183,12 @@ class HomeViewModelJvm : ScreenModel {
         screenModelScope.launch {
             wsClient.disconnect()
         }
+    }
+
+    companion object {
+        private const val WEBSOCKET_URL = "ws://10.81.2.11:8080"
+        private const val ROLE = "desktop"
+        private const val BASE_RECONNECT_DELAY_MS = 1000L
+        private const val MAX_RECONNECT_DELAY_MS = 60000L
     }
 }

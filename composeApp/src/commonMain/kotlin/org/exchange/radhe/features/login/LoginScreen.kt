@@ -1,4 +1,3 @@
-
 package org.exchange.radhe.features.login
 
 import androidx.compose.foundation.layout.Arrangement
@@ -14,13 +13,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -35,15 +34,17 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import org.exchange.radhe.features.home.HomeScreen
 
 object LoginScreen : Screen {
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val viewModel = rememberScreenModel { LoginViewModel() }
+        val uiState by viewModel.uiState.collectAsState()
 
-        val username by viewModel.username.collectAsState()
-        val password by viewModel.password.collectAsState()
-        val errorMessage by viewModel.errorMessage.collectAsState()
+        LaunchedEffect(uiState.isLoggedIn) {
+            if (uiState.isLoggedIn) {
+                navigator.push(HomeScreen)
+            }
+        }
 
         Surface {
             Column(
@@ -59,7 +60,7 @@ object LoginScreen : Screen {
                     modifier = Modifier.padding(bottom = 32.dp)
                 )
                 OutlinedTextField(
-                    value = username,
+                    value = uiState.username,
                     onValueChange = viewModel::onUsernameChange,
                     label = { Text("Username") },
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Username") },
@@ -67,7 +68,7 @@ object LoginScreen : Screen {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = password,
+                    value = uiState.password,
                     onValueChange = viewModel::onPasswordChange,
                     label = { Text("Password") },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password") },
@@ -77,17 +78,13 @@ object LoginScreen : Screen {
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
-                    onClick = {
-                        if (viewModel.login()) {
-                            navigator.push(HomeScreen)
-                        }
-                    },
+                    onClick = viewModel::login,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(vertical = 16.dp)
                 ) {
                     Text("Login")
                 }
-                errorMessage?.let {
+                uiState.errorMessage?.let {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = it,

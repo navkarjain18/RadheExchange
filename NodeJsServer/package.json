@@ -1,0 +1,16 @@
+{
+  "name": "ws-relay-server",
+  "version": "1.0.0",
+  "description": "Simple WebSocket relay for desktop <-> phone pairing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0",
+    "ws": "^8.18.3"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

@@ -16,14 +16,15 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     jvm()
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation("io.ktor:ktor-client-okhttp:3.3.3")
+            implementation("cafe.adriel.voyager:voyager-screenmodel:1.0.1")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
