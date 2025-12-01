@@ -56,8 +56,6 @@ class WebSocketService : Service() {
 
         scope.launch {
             try {
-                // Use 10.0.2.2 for Android emulator to connect to host's localhost.
-                // For a physical device, use the host's network IP address.
                 val username = intent?.getStringExtra(EXTRA_USERNAME) ?: "navkar"
                 wsClient.connect("ws://10.81.2.11:8080", "phone", username)
                 Log.d(TAG, "Connection successful. Starting key event observer.")

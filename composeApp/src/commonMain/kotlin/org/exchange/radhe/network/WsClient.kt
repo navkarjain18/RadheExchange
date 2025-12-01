@@ -20,7 +20,8 @@ class WsClient {
     private var session: WebSocketSession? = null
 
     suspend fun connect(serverUrl: String, role: String, username: String) {
-        if (session != null) return
+        session?.close()
+        session = null
         session = client.webSocketSession(serverUrl)
         val command = Command(type = "connect", role = role, username = username)
         sendCommand(command)
