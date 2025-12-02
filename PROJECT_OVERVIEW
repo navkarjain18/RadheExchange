@@ -1,0 +1,44 @@
+MY EC2 + WEBSOCKET SETUP (FINAL SUMMARY)
+
+I am running a Node.js WebSocket backend on an Ubuntu 22.04 EC2 instance.
+My server IP is:
+
+ws://43.204.218.161:8080
+
+
+I SSH using:
+
+ssh -i ~/.ssh/radhe-key.pem ubuntu@43.204.218.161
+
+
+My backend code is stored at:
+
+/home/ubuntu/radhe-server/server.js
+
+
+I run it 24/7 using:
+
+pm2 start server.js --name ws-server
+
+
+Security Group:
+
+Port 22 → SSH → 0.0.0.0/0
+
+Port 8080 → WebSocket → 0.0.0.0/0
+
+Network protocol:
+
+Android + Desktop send type: "connect" with role + username
+
+Android sends type: "command" with payload = wicket or boundary
+
+Server forwards command to targeted desktop user only
+
+Apps:
+
+Android uses Volume buttons + WebSocket
+
+Desktop (KMP) receives commands + uses Robot for mouse click
+
+Everything is working over the internet.
