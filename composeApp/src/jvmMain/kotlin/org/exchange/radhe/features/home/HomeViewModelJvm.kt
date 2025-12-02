@@ -3,6 +3,7 @@ package org.exchange.radhe.features.home
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.exchange.radhe.AppConstants
 import org.exchange.radhe.data.LoginRepository
@@ -19,6 +21,7 @@ import org.exchange.radhe.network.json
 import java.awt.MouseInfo
 import java.awt.Robot
 import java.awt.event.InputEvent
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -45,6 +48,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
 
     private val wsClient = DI.wsClient
     private val robot = Robot()
+    private var connectionJob: Job? = null
 
     init {
         println("HomeViewModelJvm initializing...")
@@ -53,10 +57,10 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
     }
 
     private fun connectAndObserve() {
-        screenModelScope.launch {
+        connectionJob = screenModelScope.launch {
             val username = uiState.value.username ?: return@launch
             var attempt = 0
-            while (true) {
+            while (isActive) { // Use isActive to make the loop cancellable
                 try {
                     _uiState.update { it.copy(connectionState = ConnectionState.Connecting, error = null) }
                     println("Attempting to connect (attempt #${attempt + 1})...")
@@ -80,11 +84,14 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
                         }
                         .catch { e ->
                             println("Error in WebSocket flow: ${e.message}")
-                            // This will trigger the onCompletion and the reconnection logic
+                            if (e is CancellationException) throw e
                         }
                         .launchIn(screenModelScope)
                         .join() // Wait until the flow is complete (i.e., connection is lost)
 
+                } catch (e: CancellationException) {
+                    println("Connection job cancelled.")
+                    break // Exit the loop when cancelled
                 } catch (e: Exception) {
                     val errorMsg = "Connection failed: ${e.message}"
                     println(errorMsg)
@@ -144,6 +151,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
     }
 
     fun logout() {
+        connectionJob?.cancel()
         screenModelScope.launch {
             wsClient.disconnect()
             loginRepository.logout()
@@ -174,7 +182,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
             _uiState.update { it.copy(error = errorMsg) }
         }
     }
-	
+
     private fun calculateBackoff(attempt: Int): Long {
         return min(AppConstants.MAX_RECONNECT_DELAY_MS, (AppConstants.BASE_RECONNECT_DELAY_MS * 2.0.pow(attempt.toDouble())).toLong())
     }
@@ -182,6 +190,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
     override fun onDispose() {
         super.onDispose()
         println("Disposing ViewModel and disconnecting client.")
+        connectionJob?.cancel()
         screenModelScope.launch {
             wsClient.disconnect()
         }

@@ -41,68 +41,72 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.screen.Screen
 import org.exchange.radhe.WebSocketService
 import org.exchange.radhe.di.ConnectionStatus
 import org.exchange.radhe.di.UplinkStateHolder
 import org.exchange.radhe.utils.isAccessibilityServiceEnabled
 
-@Composable
-actual fun HomeView() {
-    val context = LocalContext.current
-    val connectionStatus by UplinkStateHolder.connectionStatus.collectAsState()
-    val lastCommand by UplinkStateHolder.lastCommand.collectAsState()
+actual class HomeScreen : Screen {
 
-    var showAccessibilityDialog by remember { mutableStateOf(false) }
+    @Composable
+    override fun Content() {
+        val context = LocalContext.current
+        val connectionStatus by UplinkStateHolder.connectionStatus.collectAsState()
+        val lastCommand by UplinkStateHolder.lastCommand.collectAsState()
 
-    LaunchedEffect(Unit) {
-        if (!isAccessibilityServiceEnabled(context)) {
-            showAccessibilityDialog = true
+        var showAccessibilityDialog by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            if (!isAccessibilityServiceEnabled(context)) {
+                showAccessibilityDialog = true
+            }
         }
-    }
 
-    if (showAccessibilityDialog) {
-        AlertDialog(
-            onDismissRequest = { showAccessibilityDialog = false },
-            title = { Text("Enable Accessibility Service") },
-            text = { Text("To use the volume buttons to control the desktop, you must enable the Accessibility Service for this app.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showAccessibilityDialog = false
-                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                        context.startActivity(intent)
-                    }) {
-                    Text("Go to Settings")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAccessibilityDialog = false }) {
-                    Text("Dismiss")
-                }
-            })
-    }
+        if (showAccessibilityDialog) {
+            AlertDialog(
+                onDismissRequest = { showAccessibilityDialog = false },
+                title = { Text("Enable Accessibility Service") },
+                text = { Text("To use the volume buttons to control the desktop, you must enable the Accessibility Service for this app.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showAccessibilityDialog = false
+                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            context.startActivity(intent)
+                        }) {
+                        Text("Go to Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAccessibilityDialog = false }) {
+                        Text("Dismiss")
+                    }
+                })
+        }
 
-    Surface(color = MaterialTheme.colorScheme.background) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Radhe Exchange Controller",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(32.dp))
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Radhe Exchange Controller",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(32.dp))
 
-            StatusCard(connectionStatus)
-            Spacer(modifier = Modifier.height(16.dp))
-            CommandCard(lastCommand)
-            Spacer(modifier = Modifier.height(32.dp))
+                StatusCard(connectionStatus)
+                Spacer(modifier = Modifier.height(16.dp))
+                CommandCard(lastCommand)
+                Spacer(modifier = Modifier.height(32.dp))
 
-            ServiceControls(connectionStatus)
+                ServiceControls(connectionStatus)
+            }
         }
     }
 }

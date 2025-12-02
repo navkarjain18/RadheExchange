@@ -36,54 +36,58 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
+import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.exchange.radhe.features.login.LoginScreen
 
-@Composable
-actual fun HomeView() {
-    val navigator = LocalNavigator.currentOrThrow
-    val viewModel = remember { HomeViewModelJvm() }
-    val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+actual class HomeScreen : Screen {
 
-    LaunchedEffect(uiState.isLoggedOut) {
-        if (uiState.isLoggedOut) {
-            navigator.replaceAll(LoginScreen())
-        }
-    }
+    @Composable
+    override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
+        val viewModel = rememberScreenModel { HomeViewModelJvm() }
+        val uiState by viewModel.uiState.collectAsState()
+        val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
-        }
-    }
-
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("Desktop Controller", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            uiState.username?.let {
-                Text("Welcome, $it", style = MaterialTheme.typography.bodyLarge)
+        LaunchedEffect(uiState.isLoggedOut) {
+            if (uiState.isLoggedOut) {
+                navigator.replaceAll(LoginScreen())
             }
-            Spacer(modifier = Modifier.height(24.dp))
+        }
 
-            StatusCard(uiState.connectionState)
-            Spacer(modifier = Modifier.height(16.dp))
-            CommandCard(uiState.lastReceivedCommand)
-            Spacer(modifier = Modifier.height(24.dp))
+        LaunchedEffect(uiState.error) {
+            uiState.error?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearError()
+            }
+        }
 
-            ControlToggles(uiState, viewModel)
-            Spacer(modifier = Modifier.height(32.dp))
+        Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("Desktop Controller", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                uiState.username?.let {
+                    Text("Welcome, $it", style = MaterialTheme.typography.bodyLarge)
+                }
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Button(onClick = viewModel::logout) {
-                Text("Logout")
+                StatusCard(uiState.connectionState)
+                Spacer(modifier = Modifier.height(16.dp))
+                CommandCard(uiState.lastReceivedCommand)
+                Spacer(modifier = Modifier.height(24.dp))
+
+                ControlToggles(uiState, viewModel)
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(onClick = viewModel::logout) {
+                    Text("Logout")
+                }
             }
         }
     }
