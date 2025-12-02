@@ -2,7 +2,7 @@ package org.exchange.radhe
 
 object AppConstants {
     // WebSocket
-    const val WEBSOCKET_URL = "ws://192.168.0.105:8080"
+    const val WEBSOCKET_URL = "ws://43.204.218.161:8080"
     const val ROLE_PHONE = "phone"
     const val ROLE_DESKTOP = "desktop"
     const val BASE_RECONNECT_DELAY_MS = 1000L
@@ -20,10 +20,9 @@ object AppConstants {
     const val KEY_USERNAME = "username"
 
     val DUMMY_USERS = mapOf(
-        "navkar" to "pass1",
-        "shiv" to "pass2",
-        "rohan" to "pass3",
-        "rahul" to "pass4",
-        "riya" to "pass5"
+        "Shiv001" to "Shiv@1234",
+        "Radhe001" to "Radhe@1234",
+        "Hari001" to "Hari@1234",
+        "Sai001" to "Sai@1234",
     )
 }
