@@ -92,8 +92,8 @@ class WebSocketService : Service() {
         KeyEventBus.events.onEach { action ->
             Log.d(TAG, "Key event: $action")
             val commandAction = when (action) {
-                KeyAction.VOLUME_UP -> AppConstants.PAYLOAD_ACTION_WICKET
-                KeyAction.VOLUME_DOWN -> AppConstants.PAYLOAD_ACTION_BOUNDARY
+                KeyAction.VOLUME_UP -> AppConstants.PAYLOAD_ACTION_BOUNDARY
+                KeyAction.VOLUME_DOWN -> AppConstants.PAYLOAD_ACTION_WICKET
             }
             UplinkStateHolder.updateLastCommand(commandAction)
             val command = Command(
