@@ -3,10 +3,10 @@ package org.exchange.radhe
 
 import android.app.Application
 
-class RadheApp : Application() {
+class iMusicApp : Application() {
 
     companion object {
-        lateinit var instance: RadheApp
+        lateinit var instance: iMusicApp
             private set
     }
 

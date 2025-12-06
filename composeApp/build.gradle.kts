@@ -64,7 +64,7 @@ android {
         applicationId = "org.exchange.radhe"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0"
     }
     packaging {
@@ -95,6 +95,9 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "org.exchange.radhe"
             packageVersion = "1.0.0"
+
+            // Required for Ktor WebSockets & HttpClient(java)
+            modules("java.net.http")
         }
     }
 }
