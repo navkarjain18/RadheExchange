@@ -45,11 +45,15 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        if (!isServiceRunning(WebSocketService::class.java)) {
+
+        /*
+        * Commented for not starting service on volume key press
+        * */
+        /*if (!isServiceRunning(WebSocketService::class.java)) {
             Log.d(TAG, "WebSocketService not running. Starting it...")
             val intent = Intent(this, WebSocketService::class.java)
             startService(intent)
-        }
+        }*/
 
         if (event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
