@@ -33,13 +33,19 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.exchange.radhe.features.home.HomeScreen
 
+/**
+ * Screen for user authentication.
+ * Handles username/password input and navigation to the [HomeScreen] upon success.
+ */
 class LoginScreen : Screen {
+    
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val viewModel = rememberScreenModel { LoginViewModel() }
         val uiState by viewModel.uiState.collectAsState()
 
+        // Effect to handle navigation on successful login
         LaunchedEffect(uiState.isLoggedIn) {
             if (uiState.isLoggedIn) {
                 navigator.replaceAll(HomeScreen())
@@ -59,14 +65,20 @@ class LoginScreen : Screen {
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(bottom = 32.dp)
                 )
+
+                // Username Input
                 OutlinedTextField(
                     value = uiState.username,
                     onValueChange = viewModel::onUsernameChange,
                     label = { Text("Username") },
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Username") },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
+                
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                // Password Input
                 OutlinedTextField(
                     value = uiState.password,
                     onValueChange = viewModel::onPasswordChange,
@@ -75,8 +87,12 @@ class LoginScreen : Screen {
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
+                
                 Spacer(modifier = Modifier.height(24.dp))
+                
+                // Login Action
                 Button(
                     onClick = viewModel::login,
                     modifier = Modifier.fillMaxWidth(),
@@ -84,6 +100,8 @@ class LoginScreen : Screen {
                 ) {
                     Text("Login")
                 }
+                
+                // Error Display
                 uiState.errorMessage?.let {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(

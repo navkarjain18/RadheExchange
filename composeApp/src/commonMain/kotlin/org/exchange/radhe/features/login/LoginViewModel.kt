@@ -10,6 +10,9 @@ import org.exchange.radhe.AppConstants
 import org.exchange.radhe.data.LoginRepository
 import org.exchange.radhe.di.DI
 
+/**
+ * UI State for the Login screen.
+ */
 data class LoginUiState(
     val username: String = "",
     val password: String = "",
@@ -17,8 +20,15 @@ data class LoginUiState(
     val isLoggedIn: Boolean = false
 )
 
-class LoginViewModel(private val loginRepository: LoginRepository = DI.loginRepository) :
-    ScreenModel {
+/**
+ * ViewModel capable of managing the Login logic.
+ * Handles credential validation against hardcoded [AppConstants.DUMMY_USERS] and persisting backend sessions.
+ *
+ * @property loginRepository The repository for persisting login state.
+ */
+class LoginViewModel(
+    private val loginRepository: LoginRepository = DI.loginRepository
+) : ScreenModel {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
@@ -31,16 +41,22 @@ class LoginViewModel(private val loginRepository: LoginRepository = DI.loginRepo
         _uiState.update { it.copy(password = password) }
     }
 
+    /**
+     * Attempts to log the user in using the current state credentials.
+     * Updates [uiState] with success or error status.
+     */
     fun login() {
         screenModelScope.launch {
             val usernameInput = _uiState.value.username
             val passwordInput = _uiState.value.password
 
-            // Find user entry in a case-insensitive way to prevent crashes
-            val userEntry = AppConstants.DUMMY_USERS.entries.find { it.key.equals(usernameInput, ignoreCase = true) }
+            // Find user entry in a case-insensitive way to prevent crashes or bad UX
+            val userEntry = AppConstants.DUMMY_USERS.entries.find { 
+                it.key.equals(usernameInput, ignoreCase = true) 
+            }
 
             if (userEntry != null && userEntry.value == passwordInput) {
-                // Use the correct-cased username from the found entry
+                // Use the correct-cased username from the found entry for consistency
                 loginRepository.setLoggedIn(true, userEntry.key)
                 _uiState.update { it.copy(isLoggedIn = true, errorMessage = null) }
             } else {

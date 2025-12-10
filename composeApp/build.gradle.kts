@@ -25,6 +25,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation("io.ktor:ktor-client-okhttp:3.3.3")
             implementation("cafe.adriel.voyager:voyager-screenmodel:1.0.1")
+            implementation("androidx.media:media:1.7.0")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

@@ -47,44 +47,45 @@ import org.exchange.radhe.di.ConnectionStatus
 import org.exchange.radhe.di.UplinkStateHolder
 import org.exchange.radhe.utils.isAccessibilityServiceEnabled
 
+/**
+ * Android implementation of the Home Screen.
+ * 
+ * Displays the current connection status, last executed command, and controls
+ * for the WebSocket service. It also enforces the requirement for the Accessibility Service.
+ */
 actual class HomeScreen : Screen {
-
+    
     @Composable
     override fun Content() {
         val context = LocalContext.current
+        
+        // Observe Application State
         val connectionStatus by UplinkStateHolder.connectionStatus.collectAsState()
         val lastCommand by UplinkStateHolder.lastCommand.collectAsState()
 
+        // Local state for permissions dialog
         var showAccessibilityDialog by remember { mutableStateOf(false) }
 
+        // Check for Accessibility Service on initial composition
         LaunchedEffect(Unit) {
             if (!isAccessibilityServiceEnabled(context)) {
                 showAccessibilityDialog = true
             }
         }
 
+        // Dialog Prompt
         if (showAccessibilityDialog) {
-            AlertDialog(
-                onDismissRequest = { showAccessibilityDialog = false },
-                title = { Text("Enable Accessibility Service") },
-                text = { Text("To use the volume buttons to control the desktop, you must enable the Accessibility Service for this app.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showAccessibilityDialog = false
-                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                            context.startActivity(intent)
-                        }) {
-                        Text("Go to Settings")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showAccessibilityDialog = false }) {
-                        Text("Dismiss")
-                    }
-                })
+            AccessibilityPermissionDialog(
+                onDismiss = { showAccessibilityDialog = false },
+                onConfirm = {
+                    showAccessibilityDialog = false
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    context.startActivity(intent)
+                }
+            )
         }
 
+        // Main UI Layout
         Surface(color = MaterialTheme.colorScheme.background) {
             Column(
                 modifier = Modifier
@@ -98,11 +99,15 @@ actual class HomeScreen : Screen {
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
+                
                 Spacer(modifier = Modifier.height(32.dp))
 
                 StatusCard(connectionStatus)
+                
                 Spacer(modifier = Modifier.height(16.dp))
+                
                 CommandCard(lastCommand)
+                
                 Spacer(modifier = Modifier.height(32.dp))
 
                 ServiceControls(connectionStatus)
@@ -111,8 +116,39 @@ actual class HomeScreen : Screen {
     }
 }
 
+/**
+ * Dialog component to prompt the user to enable the Accessibility Service.
+ */
 @Composable
-fun StatusCard(status: ConnectionStatus) {
+private fun AccessibilityPermissionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Enable Accessibility Service") },
+        text = { 
+            Text("To reliably detect volume button presses (especially when the screen is off), " +
+                 "this app requires you to enable its Accessibility Service in System Settings.") 
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Go to Settings")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss")
+            }
+        }
+    )
+}
+
+/**
+ * Displays the current connection status associated with the WebSocket Service.
+ */
+@Composable
+private fun StatusCard(status: ConnectionStatus) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(4.dp)
@@ -142,15 +178,22 @@ fun StatusCard(status: ConnectionStatus) {
                 is ConnectionStatus.Error -> {
                     Icon(Icons.Default.Error, "Error", tint = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text(status.message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = status.message, 
+                        style = MaterialTheme.typography.bodyLarge, 
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
     }
 }
 
+/**
+ * Displays the last command sent to the server.
+ */
 @Composable
-fun CommandCard(lastCommand: String?) {
+private fun CommandCard(lastCommand: String?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(4.dp)
@@ -162,38 +205,52 @@ fun CommandCard(lastCommand: String?) {
             Icon(Icons.Default.SignalWifi4Bar, "Last Command")
             Spacer(modifier = Modifier.size(8.dp))
             Text("Last Command: ", style = MaterialTheme.typography.bodyLarge)
-            Text(lastCommand ?: "None", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(
+                text = lastCommand ?: "None", 
+                style = MaterialTheme.typography.bodyLarge, 
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
 
+/**
+ * Buttons to manually Start or Stop the Service.
+ */
 @Composable
-fun ServiceControls(connectionStatus: ConnectionStatus) {
+private fun ServiceControls(connectionStatus: ConnectionStatus) {
     val context = LocalContext.current
-    val serviceCanBeStarted = when (connectionStatus) {
-        is ConnectionStatus.Connected, is ConnectionStatus.Connecting -> false
-        else -> true
+    
+    // Determine button state based on connection status
+    val isServiceRunning = when (connectionStatus) {
+        is ConnectionStatus.Connected, is ConnectionStatus.Connecting -> true
+        else -> false
     }
 
     Row {
         Button(
             onClick = {
-                Intent(context, WebSocketService::class.java).also {
-                    context.startService(it)
+                val intent = Intent(context, WebSocketService::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
                 }
             },
-            enabled = serviceCanBeStarted
+            enabled = !isServiceRunning
         ) {
             Text("Start Service")
         }
+        
         Spacer(modifier = Modifier.size(16.dp))
+        
         Button(
             onClick = {
                 Intent(context, WebSocketService::class.java).also {
                     context.stopService(it)
                 }
             },
-            enabled = !serviceCanBeStarted,
+            enabled = isServiceRunning,
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
         ) {
             Text("Stop Service")
