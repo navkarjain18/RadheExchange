@@ -40,6 +40,10 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.exchange.radhe.features.login.LoginScreen
+import java.awt.Point
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
 
 actual class HomeScreen : Screen {
 
@@ -67,7 +71,8 @@ actual class HomeScreen : Screen {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -83,6 +88,9 @@ actual class HomeScreen : Screen {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 ControlToggles(uiState, viewModel)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                CoordinateSelection(uiState, viewModel)
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Button(onClick = viewModel::logout) {
@@ -162,6 +170,54 @@ fun ControlToggles(uiState: HomeUiState, viewModel: HomeViewModelJvm) {
             Switch(
                 checked = uiState.isBoundaryToggleOn,
                 onCheckedChange = viewModel::onBoundaryToggleChanged
+            )
+        }
+    }
+}
+
+@Composable
+fun CoordinateSelection(uiState: HomeUiState, viewModel: HomeViewModelJvm) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Click Coordinates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Select 3 coordinates to click when an event is received. Click 'Set', move your mouse, and wait 3 seconds.", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            for (i in 0..2) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Coordinate ${i + 1}: ", style = MaterialTheme.typography.bodyLarge)
+                    val point = uiState.coordinates.getOrNull(i)
+                    if (point != null) {
+                        Text("[${point.x}, ${point.y}]", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("Not set", color = Color.Gray, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Spacer(modifier = Modifier.weight(1.0f))
+                    
+                    if (uiState.capturingIndex == i) {
+                        Text("Capturing in ${uiState.captureCountdown}...", color = Color.Red, fontWeight = FontWeight.Bold)
+                    } else {
+                        Button(
+                            onClick = { viewModel.startCapturingCoordinate(i) },
+                            enabled = uiState.capturingIndex == null
+                        ) {
+                            Text(if (point == null) "Set" else "Update")
+                        }
+                    }
+                }
+                if (i < 2) Spacer(modifier = Modifier.height(8.dp))
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = if (uiState.clickDelayMs == 0L) "" else uiState.clickDelayMs.toString(),
+                onValueChange = viewModel::onDelayChanged,
+                label = { Text("Delay between clicks (ms)") },
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }

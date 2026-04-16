@@ -19,6 +19,7 @@ import org.exchange.radhe.di.DI
 import org.exchange.radhe.network.Command
 import org.exchange.radhe.network.json
 import java.awt.MouseInfo
+import java.awt.Point
 import java.awt.Robot
 import java.awt.event.InputEvent
 import kotlin.coroutines.cancellation.CancellationException
@@ -32,7 +33,11 @@ data class HomeUiState(
     val lastReceivedCommand: String = "None",
     val error: String? = null,
     val username: String? = null,
-    val isLoggedOut: Boolean = false
+    val isLoggedOut: Boolean = false,
+    val coordinates: List<Point?> = listOf(null, null, null),
+    val capturingIndex: Int? = null,
+    val captureCountdown: Int? = null,
+    val clickDelayMs: Long = 500L
 )
 
 sealed interface ConnectionState {
@@ -163,19 +168,56 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
         _uiState.update { it.copy(error = null) }
     }
 
+    fun onDelayChanged(delayStr: String) {
+        val delayMs = delayStr.toLongOrNull()
+        if (delayMs != null && delayMs >= 0) {
+            _uiState.update { it.copy(clickDelayMs = delayMs) }
+        } else if (delayStr.isEmpty()) {
+            _uiState.update { it.copy(clickDelayMs = 0L) }
+        }
+    }
+
+    fun startCapturingCoordinate(index: Int) {
+        if (uiState.value.capturingIndex != null) return
+        screenModelScope.launch {
+            _uiState.update { it.copy(capturingIndex = index, captureCountdown = 3) }
+            for (i in 3 downTo 1) {
+                _uiState.update { it.copy(captureCountdown = i) }
+                delay(1000)
+            }
+            val pointerInfo = MouseInfo.getPointerInfo()
+            if (pointerInfo != null) {
+                val newCoords = uiState.value.coordinates.toMutableList()
+                newCoords[index] = pointerInfo.location
+                _uiState.update { it.copy(coordinates = newCoords, capturingIndex = null, captureCountdown = null) }
+                println("Captured coordinate ${index + 1}: ${pointerInfo.location}")
+            } else {
+                _uiState.update { it.copy(error = "Could not get mouse pointer info.", capturingIndex = null, captureCountdown = null) }
+            }
+        }
+    }
+
     private fun performMouseClick() {
         try {
-            val pointerInfo = MouseInfo.getPointerInfo()
-            if (pointerInfo == null) {
-                println("Could not get mouse pointer info. Headless environment?")
-                _uiState.update { it.copy(error = "Could not get mouse pointer info.") }
+            val coords = uiState.value.coordinates
+            if (coords.any { it == null }) {
+                val errorMsg = "All 3 coordinates must be set before clicking."
+                println(errorMsg)
+                _uiState.update { it.copy(error = errorMsg) }
                 return
             }
-            val currentLocation = pointerInfo.location
-            robot.mouseMove(currentLocation.x, currentLocation.y)
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
-            Thread.sleep(50)
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+
+            for ((index, point) in coords.withIndex()) {
+                if (point == null) continue
+                robot.mouseMove(point.x, point.y)
+                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
+                Thread.sleep(50)
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+                println("Clicked coordinate ${index + 1} at [${point.x}, ${point.y}]")
+                if (index < coords.size - 1) {
+                    Thread.sleep(uiState.value.clickDelayMs)
+                }
+            }
         } catch (e: Exception) {
             val errorMsg = "Error performing mouse click: ${e.message}"
             println(errorMsg)
