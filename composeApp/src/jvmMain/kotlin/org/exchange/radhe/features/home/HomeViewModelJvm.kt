@@ -37,7 +37,9 @@ data class HomeUiState(
     val coordinates: List<Point?> = listOf(null, null, null),
     val capturingIndex: Int? = null,
     val captureCountdown: Int? = null,
-    val clickDelayMs: Long = 500L
+    val captureDelaySeconds: Int = 3,
+    val delay1to2Ms: Long = 500L,
+    val delay2to3Ms: Long = 500L
 )
 
 sealed interface ConnectionState {
@@ -168,20 +170,39 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
         _uiState.update { it.copy(error = null) }
     }
 
-    fun onDelayChanged(delayStr: String) {
+    fun onCaptureDelayChanged(delayStr: String) {
+        val delaySecs = delayStr.toIntOrNull()
+        if (delaySecs != null && delaySecs >= 0) {
+            _uiState.update { it.copy(captureDelaySeconds = delaySecs) }
+        } else if (delayStr.isEmpty()) {
+            _uiState.update { it.copy(captureDelaySeconds = 0) }
+        }
+    }
+
+    fun onDelay1to2Changed(delayStr: String) {
         val delayMs = delayStr.toLongOrNull()
         if (delayMs != null && delayMs >= 0) {
-            _uiState.update { it.copy(clickDelayMs = delayMs) }
+            _uiState.update { it.copy(delay1to2Ms = delayMs) }
         } else if (delayStr.isEmpty()) {
-            _uiState.update { it.copy(clickDelayMs = 0L) }
+            _uiState.update { it.copy(delay1to2Ms = 0L) }
+        }
+    }
+
+    fun onDelay2to3Changed(delayStr: String) {
+        val delayMs = delayStr.toLongOrNull()
+        if (delayMs != null && delayMs >= 0) {
+            _uiState.update { it.copy(delay2to3Ms = delayMs) }
+        } else if (delayStr.isEmpty()) {
+            _uiState.update { it.copy(delay2to3Ms = 0L) }
         }
     }
 
     fun startCapturingCoordinate(index: Int) {
         if (uiState.value.capturingIndex != null) return
         screenModelScope.launch {
-            _uiState.update { it.copy(capturingIndex = index, captureCountdown = 3) }
-            for (i in 3 downTo 1) {
+            val initialDelay = uiState.value.captureDelaySeconds
+            _uiState.update { it.copy(capturingIndex = index, captureCountdown = initialDelay) }
+            for (i in initialDelay downTo 1) {
                 _uiState.update { it.copy(captureCountdown = i) }
                 delay(1000)
             }
@@ -214,8 +235,10 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
                 Thread.sleep(50)
                 robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
                 println("Clicked coordinate ${index + 1} at [${point.x}, ${point.y}]")
-                if (index < coords.size - 1) {
-                    Thread.sleep(uiState.value.clickDelayMs)
+                if (index == 0) {
+                    Thread.sleep(uiState.value.delay1to2Ms)
+                } else if (index == 1) {
+                    Thread.sleep(uiState.value.delay2to3Ms)
                 }
             }
         } catch (e: Exception) {
