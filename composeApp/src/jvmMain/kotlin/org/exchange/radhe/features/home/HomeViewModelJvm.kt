@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import org.exchange.radhe.AppConstants
 import org.exchange.radhe.data.LoginRepository
 import org.exchange.radhe.di.DI
@@ -26,6 +27,10 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.min
 import kotlin.math.pow
 
+enum class CaptureType {
+    WICKET, BOUNDARY
+}
+
 data class HomeUiState(
     val isWicketToggleOn: Boolean = false,
     val isBoundaryToggleOn: Boolean = false,
@@ -34,12 +39,12 @@ data class HomeUiState(
     val error: String? = null,
     val username: String? = null,
     val isLoggedOut: Boolean = false,
-    val coordinates: List<Point?> = listOf(null, null, null),
-    val capturingIndex: Int? = null,
+    val wicketCoordinate: Point? = null,
+    val boundaryCoordinate: Point? = null,
+    val capturingType: CaptureType? = null,
     val captureCountdown: Int? = null,
     val captureDelaySeconds: Int = 3,
-    val delay1to2Ms: Long = 500L,
-    val delay2to3Ms: Long = 500L
+    val notification: String? = null
 )
 
 sealed interface ConnectionState {
@@ -56,6 +61,15 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
     private val wsClient = DI.wsClient
     private val robot = Robot()
     private var connectionJob: Job? = null
+    private val clickMutex = Mutex()
+
+    private fun showNotification(title: String, message: String) {
+        _uiState.update { it.copy(notification = "$title: $message") }
+    }
+
+    fun clearNotification() {
+        _uiState.update { it.copy(notification = null) }
+    }
 
     init {
         println("HomeViewModelJvm initializing...")
@@ -130,18 +144,32 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
         if (isEnabled) {
             println("Performing mouse click for action: '$action'")
             screenModelScope.launch(Dispatchers.IO) {
-                performMouseClick()
+                if (clickMutex.tryLock()) {
+                    try {
+                        val success = performMouseClick(action)
+                        if (success) {
+                            showNotification("Event Triggered", "Action '$action' executed. 5-second cooldown active.")
+                            delay(5000)
+                        } else {
+                            showNotification("Event Failed", "Action '$action' coordinate not set.")
+                        }
+                    } finally {
+                        clickMutex.unlock()
+                    }
+                } else {
+                    println("Cooldown active. Overlapping event for '$action' ignored.")
+                }
             }
         } else {
             println("Toggle for action '$action' is OFF. Ignoring command.")
+            showNotification("Event Ignored", "Action '$action' received but toggle is OFF.")
         }
     }
 
     fun onWicketToggleChanged(isToggled: Boolean) {
         _uiState.update {
             it.copy(
-                isWicketToggleOn = isToggled,
-                isBoundaryToggleOn = if (isToggled) false else it.isBoundaryToggleOn
+                isWicketToggleOn = isToggled
             )
         }
         println("Wicket toggle changed to: $isToggled")
@@ -150,8 +178,7 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
     fun onBoundaryToggleChanged(isToggled: Boolean) {
         _uiState.update {
             it.copy(
-                isBoundaryToggleOn = isToggled,
-                isWicketToggleOn = if (isToggled) false else it.isWicketToggleOn
+                isBoundaryToggleOn = isToggled
             )
         }
         println("Boundary toggle changed to: $isToggled")
@@ -179,72 +206,71 @@ class HomeViewModelJvm(private val loginRepository: LoginRepository = DI.loginRe
         }
     }
 
-    fun onDelay1to2Changed(delayStr: String) {
-        val delayMs = delayStr.toLongOrNull()
-        if (delayMs != null && delayMs >= 0) {
-            _uiState.update { it.copy(delay1to2Ms = delayMs) }
-        } else if (delayStr.isEmpty()) {
-            _uiState.update { it.copy(delay1to2Ms = 0L) }
-        }
-    }
-
-    fun onDelay2to3Changed(delayStr: String) {
-        val delayMs = delayStr.toLongOrNull()
-        if (delayMs != null && delayMs >= 0) {
-            _uiState.update { it.copy(delay2to3Ms = delayMs) }
-        } else if (delayStr.isEmpty()) {
-            _uiState.update { it.copy(delay2to3Ms = 0L) }
-        }
-    }
-
-    fun startCapturingCoordinate(index: Int) {
-        if (uiState.value.capturingIndex != null) return
+    fun startCapturingCoordinate(type: CaptureType) {
+        if (uiState.value.capturingType != null) return
         screenModelScope.launch {
             val initialDelay = uiState.value.captureDelaySeconds
-            _uiState.update { it.copy(capturingIndex = index, captureCountdown = initialDelay) }
+            _uiState.update { it.copy(capturingType = type, captureCountdown = initialDelay) }
             for (i in initialDelay downTo 1) {
                 _uiState.update { it.copy(captureCountdown = i) }
                 delay(1000)
             }
             val pointerInfo = MouseInfo.getPointerInfo()
             if (pointerInfo != null) {
-                val newCoords = uiState.value.coordinates.toMutableList()
-                newCoords[index] = pointerInfo.location
-                _uiState.update { it.copy(coordinates = newCoords, capturingIndex = null, captureCountdown = null) }
-                println("Captured coordinate ${index + 1}: ${pointerInfo.location}")
+                val point = pointerInfo.location
+                _uiState.update { 
+                    when (type) {
+                        CaptureType.WICKET -> it.copy(wicketCoordinate = point, capturingType = null, captureCountdown = null)
+                        CaptureType.BOUNDARY -> it.copy(boundaryCoordinate = point, capturingType = null, captureCountdown = null)
+                    }
+                }
+                println("Captured ${type.name} coordinate: ${pointerInfo.location}")
             } else {
-                _uiState.update { it.copy(error = "Could not get mouse pointer info.", capturingIndex = null, captureCountdown = null) }
+                _uiState.update { it.copy(error = "Could not get mouse pointer info.", capturingType = null, captureCountdown = null) }
             }
         }
     }
 
-    private fun performMouseClick() {
+    private fun performMouseClick(action: String): Boolean {
         try {
-            val coords = uiState.value.coordinates
-            if (coords.any { it == null }) {
-                val errorMsg = "All 3 coordinates must be set before clicking."
+            val point = when (action) {
+                AppConstants.PAYLOAD_ACTION_WICKET -> uiState.value.wicketCoordinate
+                AppConstants.PAYLOAD_ACTION_BOUNDARY -> uiState.value.boundaryCoordinate
+                else -> null
+            }
+            
+            if (point == null) {
+                val errorMsg = "Coordinate for $action must be set before clicking."
                 println(errorMsg)
                 _uiState.update { it.copy(error = errorMsg) }
-                return
+                return false
             }
 
-            for ((index, point) in coords.withIndex()) {
-                if (point == null) continue
-                robot.mouseMove(point.x, point.y)
+            robot.mouseMove(point.x, point.y)
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
+            Thread.sleep(50)
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+            println("Clicked $action coordinate at [${point.x}, ${point.y}]")
+            return true
+            
+            /* Previous 3-click legacy code
+            val coords = uiState.value.coordinates
+            if (coords.any { it == null }) return
+            for ((index, pt) in coords.withIndex()) {
+                if (pt == null) continue
+                robot.mouseMove(pt.x, pt.y)
                 robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
                 Thread.sleep(50)
                 robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
-                println("Clicked coordinate ${index + 1} at [${point.x}, ${point.y}]")
-                if (index == 0) {
-                    Thread.sleep(uiState.value.delay1to2Ms)
-                } else if (index == 1) {
-                    Thread.sleep(uiState.value.delay2to3Ms)
-                }
+                if (index == 0) Thread.sleep(uiState.value.delay1to2Ms)
+                else if (index == 1) Thread.sleep(uiState.value.delay2to3Ms)
             }
+            */
         } catch (e: Exception) {
             val errorMsg = "Error performing mouse click: ${e.message}"
             println(errorMsg)
             _uiState.update { it.copy(error = errorMsg) }
+            return false
         }
     }
 

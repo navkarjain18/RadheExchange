@@ -67,6 +67,13 @@ actual class HomeScreen : Screen {
             }
         }
 
+        LaunchedEffect(uiState.notification) {
+            uiState.notification?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearNotification()
+            }
+        }
+
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
             Column(
                 modifier = Modifier
@@ -191,49 +198,55 @@ fun CoordinateSelection(uiState: HomeUiState, viewModel: HomeViewModelJvm) {
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Select 3 coordinates to click when an event is received. Click 'Set', move your mouse, and wait ${uiState.captureDelaySeconds} seconds.", style = MaterialTheme.typography.bodyMedium)
+            Text("Select an action coordinate to click when an event is received. Click 'Set', move your mouse, and wait ${uiState.captureDelaySeconds} seconds.", style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(16.dp))
 
-            for (i in 0..2) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Coordinate ${i + 1}: ", style = MaterialTheme.typography.bodyLarge)
-                    val point = uiState.coordinates.getOrNull(i)
-                    if (point != null) {
-                        Text("[${point.x}, ${point.y}]", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                    } else {
-                        Text("Not set", color = Color.Gray, style = MaterialTheme.typography.bodyLarge)
-                    }
-                    Spacer(modifier = Modifier.weight(1.0f))
-                    
-                    if (uiState.capturingIndex == i) {
-                        Text("Capturing in ${uiState.captureCountdown}...", color = Color.Red, fontWeight = FontWeight.Bold)
-                    } else {
-                        Button(
-                            onClick = { viewModel.startCapturingCoordinate(i) },
-                            enabled = uiState.capturingIndex == null
-                        ) {
-                            Text(if (point == null) "Set" else "Update")
-                        }
+            // WICKET COORDINATE
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Wicket Coordinate: ", style = MaterialTheme.typography.bodyLarge)
+                val wicketPt = uiState.wicketCoordinate
+                if (wicketPt != null) {
+                    Text("[${wicketPt.x}, ${wicketPt.y}]", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                } else {
+                    Text("Not set", color = Color.Gray, style = MaterialTheme.typography.bodyLarge)
+                }
+                Spacer(modifier = Modifier.weight(1.0f))
+                
+                if (uiState.capturingType == CaptureType.WICKET) {
+                    Text("Capturing in ${uiState.captureCountdown}...", color = Color.Red, fontWeight = FontWeight.Bold)
+                } else {
+                    Button(
+                        onClick = { viewModel.startCapturingCoordinate(CaptureType.WICKET) },
+                        enabled = uiState.capturingType == null
+                    ) {
+                        Text(if (wicketPt == null) "Set" else "Update")
                     }
                 }
-                if (i < 2) Spacer(modifier = Modifier.height(8.dp))
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = if (uiState.delay1to2Ms == 0L) "" else uiState.delay1to2Ms.toString(),
-                    onValueChange = viewModel::onDelay1to2Changed,
-                    label = { Text("Delay 1 -> 2 (ms)") },
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                OutlinedTextField(
-                    value = if (uiState.delay2to3Ms == 0L) "" else uiState.delay2to3Ms.toString(),
-                    onValueChange = viewModel::onDelay2to3Changed,
-                    label = { Text("Delay 2 -> 3 (ms)") },
-                    modifier = Modifier.weight(1f)
-                )
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // BOUNDARY COORDINATE
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Boundary Coordinate: ", style = MaterialTheme.typography.bodyLarge)
+                val boundaryPt = uiState.boundaryCoordinate
+                if (boundaryPt != null) {
+                    Text("[${boundaryPt.x}, ${boundaryPt.y}]", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                } else {
+                    Text("Not set", color = Color.Gray, style = MaterialTheme.typography.bodyLarge)
+                }
+                Spacer(modifier = Modifier.weight(1.0f))
+                
+                if (uiState.capturingType == CaptureType.BOUNDARY) {
+                    Text("Capturing in ${uiState.captureCountdown}...", color = Color.Red, fontWeight = FontWeight.Bold)
+                } else {
+                    Button(
+                        onClick = { viewModel.startCapturingCoordinate(CaptureType.BOUNDARY) },
+                        enabled = uiState.capturingType == null
+                    ) {
+                        Text(if (boundaryPt == null) "Set" else "Update")
+                    }
+                }
             }
         }
     }
