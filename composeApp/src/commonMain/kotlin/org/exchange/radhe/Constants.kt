@@ -2,7 +2,7 @@ package org.exchange.radhe
 
 object AppConstants {
     // WebSocket
-    const val WEBSOCKET_URL = "ws://43.204.218.161:8080"
+    const val WEBSOCKET_URL = "ws://16.4.63.233:8080"
     const val ROLE_PHONE = "phone"
     const val ROLE_DESKTOP = "desktop"
     const val BASE_RECONNECT_DELAY_MS = 1000L
